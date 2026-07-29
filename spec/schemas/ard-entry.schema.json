@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/ards-project/ard-spec/main/spec/schemas/ard-entry.schema.json",
+  "title": "ARDEntry",
+  "description": "JSON Schema for an ARD entry — the description of a single agentic resource in a form that can be found by search. An ARD entry is defined by the ARD specification. It adopts the core descriptive terms of the default namespace and additionally requires the terms discovery depends on. Every ARD entry is a well-formed catalog entry; not every catalog entry is an ARD entry.",
+  "$ref": "#/$defs/ardEntry",
+  "$defs": {
+    "entryFields": {
+      "type": "object",
+      "description": "The terms an ARD entry may carry. This definition imposes no required terms; ardEntry (a full entry) and ardEntryProjection (a search result) layer their own requirements on top.",
+      "properties": {
+        "@context": {
+          "description": "Optional JSON-LD context. Absent, the entry's unprefixed terms resolve to the default namespace. Present, it MAY declare additional namespaces whose prefixed terms describe the resource and become available as filter dimensions.",
+          "oneOf": [
+            { "type": "string", "format": "uri" },
+            { "type": "object" },
+            { "type": "array" }
+          ]
+        },
+        "@id": {
+          "type": "string",
+          "description": "Optional JSON-LD node identifier. When present alongside `identifier`, both MUST denote the same resource."
+        },
+        "identifier": {
+          "type": "string",
+          "pattern": "^urn:air:[a-zA-Z0-9.-]+(:[a-zA-Z0-9._-]+)+$",
+          "description": "Globally unique discovery handle. Domain-anchored URN: urn:air:<publisher>:<namespace>:<agent-name>. The <publisher> segment is the authority anchor used for publisher-authority binding."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Human-readable name."
+        },
+        "type": {
+          "type": "string",
+          "description": "Artifact type as an IANA Media Type (e.g. application/mcp-server-card+json). Names what the artifact is without constraining its internal schema."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Reference to the full artifact document. Mutually exclusive with `data`."
+        },
+        "data": {
+          "type": "object",
+          "description": "The complete artifact document, inline. Mutually exclusive with `url`."
+        },
+        "representativeQueries": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": { "type": "string" },
+          "description": "Sample natural-language queries this resource can serve. Required on a full entry: this is the signal a registry builds its semantic index from, and an entry without it cannot be found by search. SHOULD contain 2-5 examples."
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Short skill or tool tokens (e.g. [\"WeatherTool\"]) enabling structured filtering without fetching the full artifact."
+        },
+        "description": {
+          "type": "string",
+          "description": "Short natural-language description. Contributes to the semantic index."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Keywords for filtering and faceting."
+        },
+        "version": {
+          "type": "string",
+          "description": "Version of the artifact."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of the last modification."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Custom key-value pairs, available as metadata.* filter keys.",
+          "additionalProperties": {
+            "type": ["string", "number", "boolean", "null"]
+          }
+        },
+        "trustManifest": {
+          "$ref": "#/$defs/trustManifest"
+        }
+      },
+      "additionalProperties": true,
+      "$comment": "additionalProperties is intentionally true. Terms drawn from namespaces declared in the entry's @context (e.g. okf:taxonomy) are valid and become filter dimensions. Constraining this to false would defeat the namespace extension mechanism."
+    },
+    "ardEntry": {
+      "description": "A complete ARD entry, as published. Requires the discovery-critical terms and exactly one of url/data.",
+      "allOf": [{ "$ref": "#/$defs/entryFields" }],
+      "required": ["identifier", "displayName", "type", "representativeQueries"],
+      "oneOf": [
+        {
+          "required": ["url"],
+          "not": { "required": ["data"] }
+        },
+        {
+          "required": ["data"],
+          "not": { "required": ["url"] }
+        }
+      ]
+    },
+    "ardEntryProjection": {
+      "description": "An ARD entry as returned in search results — a projection carrying the terms useful for selecting among results. Only `identifier` is required; a registry MAY omit any other term, notably `representativeQueries`, which serve indexing rather than presentation. The complete entry is retrievable from the entry's url.",
+      "allOf": [{ "$ref": "#/$defs/entryFields" }],
+      "required": ["identifier"]
+    },
+    "trustManifest": {
+      "type": "object",
+      "description": "Identity, compliance, and provenance envelope. Verified independently of discovery ranking.",
+      "required": ["identity"],
+      "properties": {
+        "identity": {
+          "type": "string",
+          "description": "Globally unique cryptographic workload identifier (SPIFFE ID, DID, or HTTPS FQDN URI). Its trust domain MUST align with the <publisher> segment of the entry's identifier."
+        },
+        "identityType": {
+          "type": "string",
+          "enum": ["spiffe", "did", "https", "other"],
+          "description": "Hint for the cryptographic format of the identity."
+        },
+        "attestations": {
+          "type": "array",
+          "description": "Verifiable claims (compliance audits, certifications).",
+          "items": {
+            "type": "object",
+            "required": ["type", "uri"],
+            "properties": {
+              "type": { "type": "string" },
+              "uri": { "type": "string", "format": "uri" },
+              "mediaType": { "type": "string" },
+              "digest": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "provenance": {
+          "type": "array",
+          "description": "Lineage trail of the artifact.",
+          "items": {
+            "type": "object",
+            "required": ["relation", "sourceId"],
+            "properties": {
+              "relation": {
+                "type": "string",
+                "enum": ["derivedFrom", "publishedFrom", "copiedFrom"]
+              },
+              "sourceId": { "type": "string" },
+              "sourceDigest": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "signature": {
+          "type": "string",
+          "description": "Detached JWS signature computed over the trust manifest content."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

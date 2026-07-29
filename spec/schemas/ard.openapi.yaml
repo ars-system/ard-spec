@@ -269,7 +269,7 @@ components:
 
     SearchResultItem:
       allOf:
-        - $ref: './ai-catalog.schema.json#/$defs/catalogEntry'
+        - $ref: './ard-entry.schema.json#/$defs/ardEntryProjection'
       type: object
       required:
         - score
@@ -321,7 +321,7 @@ components:
         items:
           type: array
           items:
-            $ref: './ai-catalog.schema.json#/$defs/catalogEntry'
+            $ref: './ard-entry.schema.json#/$defs/ardEntryProjection'
         total:
           type: integer
           description: Total count of matching entries in the registry.
