@@ -103,13 +103,25 @@
       ]
     },
     "ardEntryProjection": {
-      "description": "An ARD entry as returned in search results — a projection carrying the terms useful for selecting among results. Only `identifier` is required; a registry MAY omit any other term, notably `representativeQueries`, which serve indexing rather than presentation. The complete entry is retrievable from the entry's url.",
+      "description": "An ARD entry as returned in search results — a projection carrying the terms useful for selecting among results. Only `identifier` is required; a registry MAY omit any other term, notably `representativeQueries`, which serve indexing rather than presentation. `identifier` names the authoritative entry; the full entry is obtained from the source that published it.",
       "allOf": [{ "$ref": "#/$defs/entryFields" }],
       "required": ["identifier"]
     },
+    "ardManifest": {
+      "type": "object",
+      "description": "The document published at /.well-known/ard.json (or any entry source). ARD requires only an `entries` array of ARD entries; any other top-level members are transport-defined and ignored by ARD, so additionalProperties is open.",
+      "required": ["entries"],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ardEntry" }
+        }
+      },
+      "additionalProperties": true
+    },
     "trustManifest": {
       "type": "object",
-      "description": "Identity, compliance, and provenance envelope. Verified independently of discovery ranking.",
+      "description": "Identity, compliance, and provenance envelope. ARD reads only `identity` (for publisher-authority binding) and treats the rest as opaque; the members below are documented for reference. Validation is intentionally permissive (additionalProperties: true) so a trust manifest defined by any framework passes unchanged — including members ARD does not enumerate, such as trustSchema. Signing and verification are defined by the framework named in trustSchema, not by ARD.",
       "required": ["identity"],
       "properties": {
         "identity": {
@@ -118,8 +130,18 @@
         },
         "identityType": {
           "type": "string",
-          "enum": ["spiffe", "did", "https", "other"],
-          "description": "Hint for the cryptographic format of the identity."
+          "description": "Hint for the cryptographic format of the identity (e.g. spiffe, did, https)."
+        },
+        "trustSchema": {
+          "type": "object",
+          "description": "The trust framework the manifest conforms to, and the source of its verification procedure.",
+          "properties": {
+            "identifier": { "type": "string" },
+            "version": { "type": "string" },
+            "governanceUri": { "type": "string", "format": "uri" },
+            "verificationMethods": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": true
         },
         "attestations": {
           "type": "array",
@@ -133,7 +155,7 @@
               "mediaType": { "type": "string" },
               "digest": { "type": "string" }
             },
-            "additionalProperties": false
+            "additionalProperties": true
           }
         },
         "provenance": {
@@ -143,22 +165,19 @@
             "type": "object",
             "required": ["relation", "sourceId"],
             "properties": {
-              "relation": {
-                "type": "string",
-                "enum": ["derivedFrom", "publishedFrom", "copiedFrom"]
-              },
+              "relation": { "type": "string" },
               "sourceId": { "type": "string" },
               "sourceDigest": { "type": "string" }
             },
-            "additionalProperties": false
+            "additionalProperties": true
           }
         },
         "signature": {
           "type": "string",
-          "description": "Detached JWS signature computed over the trust manifest content."
+          "description": "Detached signature over the trust manifest content, per the framework named in trustSchema."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     }
   }
 }

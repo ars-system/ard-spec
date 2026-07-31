@@ -1,11 +1,11 @@
-; CDDL Specification for Agentic Resource Discovery (ai-catalog & Registry schemas)
+; CDDL Specification for Agentic Resource Discovery (ARD entry, manifest & Registry schemas)
 ; Compliant with IETF RFC 8610 (Concise Data Definition Language)
 
-start = ai-catalog-manifest
+start = ard-manifest
 
 ; --- The Manifest Schema ---
 
-ai-catalog-manifest = {
+ard-manifest = {
   specVersion: "1.0",
   ? host: host-info,
   entries: [+ catalog-entry]

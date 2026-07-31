@@ -16,7 +16,7 @@
 >
 > **What changed from v0.9.** This revision **(a)** establishes that ARD defines the **ARD entry**, a distinct object from a catalog entry (§4) — every ARD entry is a well-formed catalog entry, but not every catalog entry is an ARD entry; **(b)** restates the description layer on JSON-LD with a *default namespace* and a `@context` extension seam; **(c)** makes the individual entry — not the hosted manifest — the unit the spec is defined over; **(d)** folds *Identity and Trust* into the entry model (§4.5); and **(e)** reorganizes so that **Discovery** (§5) is the umbrella section that now contains the search API and federation.
 >
-> **Two changes are normative rather than editorial**, and are flagged in place: `representativeQueries` is now required for an ARD entry (§4.2), and the well-known path and link relation are now `ard`-named (§5.1). Neither breaks existing publishers — §5.1 requires consumers to honour the former names as aliases.
+> **Several changes are normative rather than editorial**, and are flagged in place: `representativeQueries` is now required for an ARD entry (§4.2); an ARD **base context** (§4.1) is the initial expansion context that gives a plain entry its term IRIs; and the well-known path and link relation are now `ard`-named (§5.1). None breaks existing publishers — a plain entry expands unchanged under the base context, and §5.1 requires consumers to honour the former path and relation as aliases.
 >
 > **How this document is annotated.** Changes from v0.9 are marked in place so a reviewer can see them without a separate changelog:
 >
@@ -91,7 +91,11 @@ Within this specification, "entry" means "ARD entry" unless stated otherwise.
 
 ### 4.1 An ARD Entry Is a JSON-LD Node
 
-An entry is a JSON-LD node describing an agentic resource. An entry that omits `@context` is interpreted against the default namespace, so an entry written in plain default-namespace terms needs no changes. An entry MAY declare a `@context` to bring in terms from other namespaces; those terms describe the resource and are available for filtering (§5.3.1), while the default-namespace terms below carry the discovery-critical fields.[^p41]
+An entry is a JSON-LD node describing an agentic resource. Its terms acquire meaning through the **ARD base context**, published at `https://agenticresourcediscovery.org/context/v1`, which maps the core terms to IRIs under the default namespace (`https://agenticresourcediscovery.org/ns#`).
+
+A conforming consumer MUST expand an entry with the ARD base context as the initial expansion context (the JSON-LD `expandContext` option). An entry's own `@context`, when present, is applied after the base context: it MAY add or override namespaces but does not remove the base. Under this rule the core terms resolve to their IRIs and namespaced terms (e.g. `okf:taxonomy`) resolve through the prefixes the entry declares.[^p41]
+
+Carrying `@context` in the entry itself is OPTIONAL. An entry that omits it — including every entry published against the predecessor format — is interpreted by any consumer that applies the base context, and needs no changes. An entry SHOULD include `"@context": "https://agenticresourcediscovery.org/context/v1"` (optionally as the first element of an array whose later elements add local namespaces) when it may be read by generic JSON-LD tooling that has not been told to apply the base context — most importantly when embedded as in-page markup. The consequence is deliberate: an entry with no `@context` is interpretable only by a consumer that knows it is an ARD entry and applies the base context. That is the trade for terse authoring and backward compatibility.
 
 ### 4.2 Entry Terms
 
@@ -110,7 +114,7 @@ The following terms are optional. `capabilities` is defined in full here because
 | Term | Description |
 | :--- | :--- |
 | capabilities | Short skill or tool tokens (e.g. `["WeatherTool"]`) enabling fast structured filtering without fetching the full artifact. |
-| description, tags, version, updatedAt, metadata, trustManifest | As defined by the default namespace. `trustManifest` is discussed in §4.5. |
+| description, tags, version, updatedAt, metadata, trustManifest | Descriptive terms. `trustManifest` is discussed in §4.5; ARD reads only `trustManifest.identity` and treats the rest as opaque. |
 
 Terms from any additional namespace declared in the entry's `@context` MAY also appear and become available as filter dimensions (§5.3.1) with no change to this specification.
 
@@ -181,7 +185,7 @@ A skill entry from a solo developer, no trust ceremony required:
 
 ### 4.5 Identity and Trust
 
-Identity binding, compliance attestations, provenance, and cryptographic signatures are carried in the optional `trustManifest` term. This keeps the entry lightweight for simple use cases while providing a robust hook for enterprise compliance, separate from the artifact's native operational metadata. ARD does not redefine the trust manifest; it references the entry schema (Appendix D) and states the one binding rule discovery depends on.[^trust]
+Identity binding, compliance attestations, provenance, and cryptographic signatures are carried in the optional `trustManifest` term. This keeps the entry lightweight for simple use cases while providing a robust hook for enterprise compliance, separate from the artifact's native operational metadata. ARD requires only `trustManifest.identity`, for the binding rule in §4.5.1; it validates the envelope permissively and neither constrains nor interprets the remaining members, so a trust manifest defined by any framework passes unchanged.[^trust]
 
 #### 4.5.1 Publisher Authority Binding
 
@@ -189,7 +193,9 @@ The cryptographic trust domain asserted in `trustManifest.identity` MUST align w
 
 #### 4.5.2 Verification
 
-For the structure of the trust manifest (attestations, provenance links, signatures) and for verification procedures — signature checking and key resolution — refer to the entry schema (Appendix D). A relevance score returned by Search (§5.3.2) reflects semantic relevance only and MUST NOT be interpreted as a trust, compliance, or safety judgment; trust evaluation is fully decoupled.
+ARD does not define a signing or verification procedure of its own. The signed payload, its canonicalization, signature processing, and key resolution are defined by the trust framework the manifest declares in `trustManifest.trustSchema` (through its `governanceUri` and `verificationMethods`). ARD mandates only the publisher-authority binding of §4.5.1; two implementations verifying the same manifest defer to the same declared framework. A future ARD profile MAY pin a concrete default scheme, but this specification does not.[^verify]
+
+A relevance score returned by Search (§5.3.2) reflects semantic relevance only and MUST NOT be interpreted as a trust, compliance, or safety judgment; trust evaluation is fully decoupled.
 
 > ◆ *Removed from v0.9 here — the §5.1–5.3 field tables "The Trust Manifest Object," "Attestation Object," and "Provenance Link Object."*[^rm-trusttables]
 
@@ -204,7 +210,7 @@ Discovery is what ARD is fundamentally about, and it spans this entire section: 
 
 Publishers advertise entries via the following mechanisms. Each points a consumer at a source of entries; the entries themselves follow §4 regardless of how they are found.[^mechanisms]
 
-* **Well-Known URI**: Hosting a manifest of entries at `https://{domain}/.well-known/ard.json`.[^wellknown]
+* **Well-Known URI**: Hosting a manifest of entries at `https://{domain}/.well-known/ard.json`. The manifest is a JSON document with an `entries` array of ARD entries (§4); any other top-level members are transport-defined and ignored by ARD. Its shape is given by the `ardManifest` definition in the entry schema (Appendix D).[^wellknown]
 * **In-page markup**: Embedding entry JSON-LD in a web page describing the resource, discoverable by ordinary web crawling.
 * **Agentmap Directive**: Adding an entry-source directive in `robots.txt` (e.g. `Agentmap: https://example.com/entries.json`).
 * **HTML Link Tag**: Including `<link rel="ard" href="...">` in the `<head>` of a document.
@@ -286,7 +292,7 @@ In addition to the `query` object (§5.3.1), Search accepts:
 
 The response returns entries with additional relevance scores, plus optional referrals. The `score` parameter denotes semantic relevance ranking (0–100) computed by the search registry, indicating how well the entry satisfies the natural language query. It is strictly an informational relevance metric and MUST NOT be interpreted by orchestrators as a cryptographic trust, compliance, or safety rating. Trust evaluation is fully decoupled and handled independently via the trust manifest (§4.5).
 
-Response entries are **projections**: a registry returns the terms useful for selecting among results and MAY omit others. `representativeQueries`, in particular, serve indexing rather than presentation and are normally omitted from results. A projection is not itself a complete ARD entry (§4.2); the full entry is retrievable from the entry's `url`.
+Response entries are **projections**: a registry returns the terms useful for selecting among results and MAY omit others. `representativeQueries`, in particular, serve indexing rather than presentation and are normally omitted from results. A projection is therefore not a complete ARD entry (§4.2); it carries at least `identifier`, which names the authoritative entry. Note that `url`, where present, addresses the artifact (an Agent Card, Server Card, and so on) — not the ARD entry that describes it. A normative operation for retrieving a complete entry by `identifier` is out of scope for this draft; a client that needs the full entry obtains it from the source that published it.
 
 ```json
 {
@@ -525,10 +531,11 @@ To support automated validation, testing, and machine-readable compliance checki
 
 The ARD entry — its required terms, the value-or-reference rule, and the `trustManifest` envelope — is formally defined in JSON Schema (Draft 2020-12). Because ARD defines the ARD entry (§4), this schema is authoritative for it and does not derive from any catalog schema; the two evolve independently.[^ownschema]
 
-* **Authoritative schema**: [`spec/schemas/ard-entry.schema.json`](schemas/ard-entry.schema.json)
+* **Authoritative schema**: [`spec/schemas/ard-entry.schema.json`](schemas/ard-entry.schema.json) — defines `ardEntry` (a full entry), `ardEntryProjection` (a search result), and `ardManifest` (the `/.well-known/ard.json` document, §5.1).
+* **Base context**: [`spec/schemas/ard.context.jsonld`](schemas/ard.context.jsonld) — the initial expansion context of §4.1, served at `https://agenticresourcediscovery.org/context/v1`.
 * **Structural grammar (CDDL, RFC 8610)**: [`spec/schemas/ard.cddl`](schemas/ard.cddl)
 
-Note that the schema sets `additionalProperties: true` by design. Terms drawn from namespaces declared in an entry's `@context` (§4.1) are valid and become filter dimensions; a closed schema would defeat the extension mechanism.
+Note that the schema sets `additionalProperties: true` by design. Terms drawn from namespaces declared in an entry's `@context` (§4.1) are valid and become filter dimensions; a closed schema would defeat the extension mechanism. The `trustManifest` envelope is likewise open — ARD reads only `identity` (§4.5).
 
 To validate an entry with AJV CLI:
 ```bash
@@ -600,7 +607,7 @@ The authors thank the following people for their contributions and feedback, in 
 
 [^entrymodel]: **Substantially rewritten (was v0.9 §4 "The Data Model").** v0.9 organized §4 around the hosted capability manifest (`ai-catalog.json`) and opened with an ~85-line manifest example. v0.91 defines ARD over the individual **entry** and treats the manifest as just one transport container (see §5.1). Removed here as out-of-scope-for-ARD or belonging to the container: the manifest-envelope example, the "Capability Manifest" section, and the "Host Info Object" (v0.9 §4.3). Terminology changed throughout from "catalog entry" / "field" to "entry" / "term." Note also that **ai-catalog is no longer named as the base vocabulary in prose** — it is the (unnamed) default namespace; the string "ai-catalog" now appears only in concrete file/paths (the well-known manifest path and the schema filenames).
 
-[^p41]: **New framing (§4.1).** No equivalent section in v0.9. States that an entry is a JSON-LD node interpreted against the default namespace, with `@context` bringing in additional namespaces.
+[^p41]: **New framing (§4.1), revised after review.** No equivalent section in v0.9. An earlier form of this draft claimed a plain entry "needs no changes" without saying how its unprefixed terms acquire IRIs. As a reviewer demonstrated, bare JSON-LD expansion of a context-less entry yields an empty graph — every core term is dropped. This revision specifies the mechanism: an ARD **base context** (served at `https://agenticresourcediscovery.org/context/v1`, shipped as `spec/schemas/ard.context.jsonld`) that a consumer applies as the JSON-LD `expandContext`. The base context sets `@vocab` to the default namespace and maps each core term to an IRI — including `type`, which it binds to `ard:mediaType` so it does not collide with the JSON-LD `@type` keyword. Verified with a PyLD round-trip: under the base context the plain and extension examples expand with all core terms preserved and namespaced terms carrying their declared prefixes; without it, expansion is empty. `@context` on the wire remains optional (§4.1).
 
 [^p42]: **Changed from v0.9 §4.2 "Catalog Entry Object."** The required/optional term tables are retained, but authoritative definitions are now *referenced* (Appendix D) rather than restated inline. `representativeQueries` and `capabilities` are highlighted as the discovery-specific terms ARD relies on. Related: v0.9 had a dedicated **§4.2.1 "Agent Identifier … Format and Rationale"** that mandated the `urn:air:` form and argued for it at length; that section is **removed**, its rationale consolidated into **Appendix C**, and the identifier row here adds that the JSON-LD `@id` MAY mirror the URN.
 
@@ -608,7 +615,9 @@ The authors thank the following people for their contributions and feedback, in 
 
 [^examples]: **Changed from v0.9 §4.4.** Examples are reduced to individual entries — the manifest wrappers (`specVersion` / `host`) and the Host Info Object are gone. A **new** example shows an entry drawing extra terms from an additional namespace via `@context`. Any Schema.org-specific example text that appeared in interim drafts has been removed; the extension example uses a generic publisher namespace (`acme:`).
 
-[^trust]: **Moved and trimmed (was top-level v0.9 §5 "Identity and Trust").** Trust is a property of an entry, so it is folded here as **§4.5**. The v0.9 tables that restated the *Trust Manifest*, *Attestation*, and *Provenance Link* objects (v0.9 §5.1–5.3) are **dropped** and replaced by a reference to the entry schema (Appendix D). The one rule ARD needs inline — publisher-authority binding — is kept as §4.5.1.
+[^trust]: **Moved and trimmed (was top-level v0.9 §5 "Identity and Trust").** Trust is a property of an entry, so it is folded here as **§4.5**. The v0.9 tables that restated the *Trust Manifest*, *Attestation*, and *Provenance Link* objects (v0.9 §5.1–5.3) are **dropped** and replaced by a reference to the entry schema (Appendix D). The one rule ARD needs inline — publisher-authority binding — is kept as §4.5.1. **Revised after review:** an earlier form of the entry schema defined `trustManifest` as a *closed* object that omitted members present in the predecessor (notably `trustSchema`), which would have rejected otherwise-valid trust manifests — a silent conformance narrowing. The schema is now permissive (`additionalProperties: true` on the envelope and its members) and the prose states plainly that ARD reads only `identity` and treats the rest as opaque, so nothing is narrowed.
+
+[^verify]: **Fills a gap introduced by the decoupling (§4.5.2).** v0.9 sent signature verification and key resolution to the predecessor spec. When that pointer was removed, the replacement pointed at Appendix D, which defines field shapes but not a verification procedure — leaving the signed payload, canonicalization, and key resolution unspecified, so two implementations could diverge. This revision states that those are defined by the trust framework the manifest declares in `trustManifest.trustSchema` (`governanceUri` / `verificationMethods`); ARD mandates only the publisher-authority binding (§4.5.1) and does not define its own scheme, though a future profile MAY pin one.
 
 [^discovery]: **Reorganized — the central structural change.** v0.9 spread discovery across three top-level sections: §6 Discovery (publishing/ingestion), §7 The ARD API (search), and §8 Federation. v0.91 makes **§5 Discovery** the umbrella for all three, because search and federation *are* the dynamic half of discovery. This foregrounds discovery — the core purpose of ARD — structurally, without changing any endpoint behavior. (Entry stays defined *before* discovery so that discovery, which operates on entries, has no forward references.)
 
@@ -634,7 +643,7 @@ The authors thank the following people for their contributions and feedback, in 
 
 [^reqqueries]: **Normative change from v0.9.** In v0.9 `representativeQueries` was an optional term with a SHOULD on its size. It is now **required** for an ARD entry. This follows directly from the separation in §4: an ARD entry is defined by the guarantee that the discovery signals are present and uniformly addressable, and `representativeQueries` is the signal the semantic index is constructed from. An entry lacking it is not indexed at all, so admitting it as a valid ARD entry would make the entry definition promise something it cannot deliver. A listing without it remains a perfectly valid *catalog* entry — it is simply not an ARD entry. The 2–5 count remains a SHOULD.
 
-[^wellknown]: **Wire change from v0.9.** The well-known path is now `/.well-known/ard.json` and the link relation is `ard`; v0.9 used `/.well-known/ai-catalog.json` and `rel="ai-catalog"`. The DNS and Agentmap example labels were made vocabulary-neutral to match. Existing publishers are not broken: the Compatibility note requires consumers to continue honouring the former path and relation as aliases. This is the last remaining normative dependency to be retired, and it is retired here in favour of names ARD controls.
+[^wellknown]: **Wire change from v0.9.** The well-known path is now `/.well-known/ard.json` and the link relation is `ard`; v0.9 used `/.well-known/ai-catalog.json` and `rel="ai-catalog"`. The DNS and Agentmap example labels were made vocabulary-neutral to match. Existing publishers are not broken: the Compatibility note requires consumers to continue honouring the former path and relation as aliases. This is the last remaining normative dependency to be retired, and it is retired here in favour of names ARD controls. **Revised after review:** the well-known document's shape was previously undefined. §5.1 now states it is a JSON document with an `entries` array of ARD entries (other members transport-defined and ignored), formalized as `ardManifest` in the entry schema; the CDDL's `start` symbol was renamed from `ai-catalog-manifest` to `ard-manifest` accordingly.
 
 [^ownschema]: **Changed from v0.9.** v0.9 referenced the catalog JSON Schema as authoritative for entry structure. Now that ARD defines the ARD entry (§4), ARD publishes its own: `spec/schemas/ard-entry.schema.json`, which requires `representativeQueries`, keeps value-or-reference, defines the `trustManifest` envelope directly rather than by reference, and deliberately leaves `additionalProperties` open so namespaced terms remain valid. The OpenAPI specification's entry `$ref`s were repointed to it. The practical effect is that a future reduction of any catalog core cannot silently change what ARD requires.
 
