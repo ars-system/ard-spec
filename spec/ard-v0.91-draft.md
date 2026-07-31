@@ -231,15 +231,17 @@ The search API is the dynamic half of discovery.[^searchapi] An Agent Registry *
 
 #### 5.3.1 The Query Model
 
-The `POST /search` and `POST /explore` endpoints accept a common `query` object with two members, `text` and `filter`. Each endpoint defines its own additional parameters alongside `query` (see §5.3.2 and §5.3.3) and its own presence requirements for `text` and `filter`.
+The `POST /search` and `POST /explore` endpoints accept a common `query` object with three members: `@context`, `text`, and `filter`. Each endpoint defines its own additional parameters alongside `query` (see §5.3.2 and §5.3.3) and its own presence requirements for `text` and `filter`.
 
 ```json
 {
   "query": {
+    "@context": { "okf": "https://openknowledgeformat.org/ns#" },
     "text": "find me a flight booking agent",
     "filter": {
       "type": ["application/a2a-agent-card+json"],
       "tags": ["finance"],
+      "okf:taxonomy": ["us-gaap"],
       "trustManifest.attestations.type": ["SOC2-Type2"]
     }
   }
@@ -248,14 +250,19 @@ The `POST /search` and `POST /explore` endpoints accept a common `query` object 
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
+| @context | Object/String | Optional. Binds the prefixes used in `filter` keys, exactly as an entry's `@context` binds the terms it carries. Layered on the ARD base context (§4.1); absent, only the base context applies. |
 | text | String | Natural-language description of the need. Narrows the result set by semantic relevance. |
-| filter | Object | Structured constraints. Keys are term paths into the entry; values are arrays (a bare scalar is accepted as a single-element array). |
+| filter | Object | Structured constraints. Keys are term paths; values are arrays (a bare scalar is accepted as a single-element array). |
 
 `text` and `filter` compose: an entry is in the matched set if it satisfies the relevance criteria for `text` (when present) AND every constraint in `filter` (when present).
 
-**Filter Semantics**: Term paths are dot-separated to address nested values (e.g. `trustManifest.attestations.type`). When the value at a path is an array, a constraint matches if any element satisfies it. Within a single key, values are combined with OR; across keys, with AND.
+**Term resolution.** A filter key that names a term is resolved to its IRI through the query's effective context — the ARD base context plus the query's `@context` — and matched against entries by that IRI, not by the literal key string. This is what makes namespaced filtering work across publishers: a client filtering on `okf:taxonomy` matches any entry whose author bound the same namespace, regardless of the prefix that author chose (`okf:`, `openknowledge:`, …), because both sides resolve to the same IRI. Core terms (`type`, `tags`, `capabilities`, `version`, …) resolve through the base context and need no `@context`.
 
-**Extensibility**: Any term present in an entry MAY be used as a filter key with no specification change — default-namespace terms (`type`, `tags`, `capabilities`, `version`, …), nested terms under `trustManifest`, custom `metadata.*` terms, and terms contributed by additional namespaces declared in the entry's `@context` (§4.1). A registry that indexes a term makes it filterable.[^extensibility]
+**Path segments into opaque members.** ARD treats `trustManifest`, `metadata`, and inline `data` as opaque (§4.1); dot-paths *into* them (e.g. `trustManifest.attestations.type`, `metadata.location`) are literal JSON paths on the raw member, not IRI-resolved. The leading segment is still an IRI-resolved term; the remainder is a literal path.
+
+**Filter Semantics**: When the value at a resolved key or path is an array, a constraint matches if any element satisfies it. Within a single key, values are combined with OR; across keys, with AND.
+
+**Extensibility**: Any term an entry carries MAY be used as a filter key with no specification change — core terms, opaque-member paths, and any namespaced term the query binds in `@context`. A registry that indexes a term makes it filterable.[^extensibility]
 
 The `publisher` key is derived from the `<publisher>` segment of an entry's URN identifier (Appendix C), not a stored term; registries extract it.
 
@@ -625,7 +632,7 @@ The authors thank the following people for their contributions and feedback, in 
 
 [^searchapi]: **From v0.9 §7 "The ARD API."** Now nested under Discovery as **§5.3** and titled "The Search API." The endpoints (`/search`, `/explore`, `/agents`), the query model, and their request/response schemas are unchanged in behavior; only numbering and framing moved (7.x → 5.3.x, and the informative query-processing note 7.2.1 → 5.3.2.1).
 
-[^extensibility]: **Changed from v0.9 §7.1.** v0.9's filter-extensibility paragraph explicitly called out "Schema.org-vocabulary fields." That naming is removed. Extensibility is now expressed generically: any term an entry carries — including terms from additional namespaces declared in its `@context` — is filterable.
+[^extensibility]: **Changed from v0.9 §7.1, then revised for IRI-resolved filtering.** v0.9's filter-extensibility paragraph explicitly called out "Schema.org-vocabulary fields." That naming is removed. Extensibility is now expressed generically: any term an entry carries — including namespaced terms — is filterable. The revision closes a gap: the base context (§4.1) gives entry terms stable IRIs, but an earlier form of this section matched filter keys by literal string, so a client filtering `okf:taxonomy` would have missed a publisher who wrote the same namespace as `openknowledge:taxonomy`. The query now carries its own `@context`, and filter keys are resolved to IRIs through the base context plus that `@context` before matching — so both sides match by identity, not by prefix spelling. Paths into members ARD treats as opaque (`trustManifest`, `metadata`, `data`) remain literal JSON paths.
 
 [^federation]: **From v0.9 §8**, now **§5.4** under Discovery. Federation modes (`auto` / `referrals` / `none`) and the referrals example are unchanged. (Fixed in passing: the Explore section's cross-reference that read "the role of Search" now points to Search §5.3.2 and its federation modes, rather than mislabeling the Federation section.)
 
