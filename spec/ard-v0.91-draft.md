@@ -16,7 +16,7 @@
 >
 > **What changed from v0.9.** This revision **(a)** establishes that ARD defines the **ARD entry**, a distinct object from a catalog entry (§4) — every ARD entry is a well-formed catalog entry, but not every catalog entry is an ARD entry; **(b)** restates the description layer on JSON-LD with a *default namespace* and a `@context` extension seam; **(c)** makes the individual entry — not the hosted manifest — the unit the spec is defined over; **(d)** folds *Identity and Trust* into the entry model (§4.5); and **(e)** reorganizes so that **Discovery** (§5) is the umbrella section that now contains the search API and federation.
 >
-> **Several changes are normative rather than editorial**, and are flagged in place: `representativeQueries` is now required for an ARD entry (§4.2); an ARD **base context** (§4.1) is the initial expansion context that gives a plain entry its term IRIs; and the well-known path and link relation are now `ard`-named (§5.1). None breaks existing publishers — a plain entry expands unchanged under the base context, and §5.1 requires consumers to honour the former path and relation as aliases.
+> **Several changes are normative rather than editorial**, and are flagged in place: `representativeQueries` is expected on an ARD entry and flagged by conformance tooling when missing, though not hard-required (§4.2); an ARD **base context** (§4.1) is the initial expansion context that gives a plain entry its term IRIs; and the well-known path and link relation are now `ard`-named (§5.1). None breaks existing publishers — an entry validates without `representativeQueries` (with a warning), a plain entry expands unchanged under the base context, and §5.1 requires consumers to honour the former path and relation as aliases.
 >
 > **How this document is annotated.** Changes from v0.9 are marked in place so a reviewer can see them without a separate changelog:
 >
@@ -81,7 +81,7 @@ The unit ARD describes, indexes, and returns is the **ARD entry** — the descri
 
 **This specification defines the ARD entry.** An ARD entry is not the same object as a catalog entry, and the two should not be conflated. A catalog entry is a publisher's listing of a resource: its obligation is to accommodate whatever the publisher wishes to describe, so it commits to as little as possible. An ARD entry is a description carrying the signals a search service requires in order to make resources comparable across publishers who have never coordinated: its obligation is to guarantee that those signals are present and uniformly addressable.
 
-The two are related but distinct. ARD adopts the core terms of the default namespace (§4.2) and additionally requires the terms discovery depends on. It follows that **every ARD entry is a well-formed catalog entry, but not every catalog entry is an ARD entry** — a listing that omits the discovery terms remains a perfectly valid catalog entry and is simply not discoverable through ARD.
+The two are related but distinct. ARD adopts the core terms of the default namespace (§4.2) and layers on the terms discovery depends on — chiefly `representativeQueries`, which an ARD entry is expected to carry. It follows that **every ARD entry is a well-formed catalog entry, but not every catalog entry is an ARD entry** — a listing that omits the discovery terms remains a perfectly valid catalog entry and is simply not discoverable through ARD. ARD keeps this expectation soft at the schema level: a missing or under-populated `representativeQueries` is flagged by conformance tooling as a warning, not a hard validation failure, so entries emitted by existing tooling still validate (§4.2).
 
 Because the definitions are separate, each specification's conformance is self-contained: a change to what a catalog entry requires does not change what an ARD entry requires, and vice versa.
 
@@ -107,13 +107,18 @@ The default namespace supplies definitions for the terms below; ARD determines w
 | displayName | MUST | Human-readable name. |
 | type | MUST | Artifact type as an IANA Media Type (§3.3). |
 | url _or_ data | MUST (exactly one) | Value-or-reference (§4.3). |
-| representativeQueries | MUST | Sample natural-language queries a user might issue that this resource can serve. This is the signal a registry builds its semantic index from; an entry without it cannot be found by search, which is why an ARD entry requires it where a catalog entry does not.[^reqqueries] SHOULD contain 2–5 examples. |
 
-The following terms are optional. `capabilities` is defined in full here because it carries a discovery signal; the remainder are descriptive and defined by reference.
+An ARD entry SHOULD additionally carry `representativeQueries`, and `capabilities` is recommended where it applies; these are the discovery signals, so they are described in full here rather than by reference.
+
+| Term | Requirement | Description |
+| :--- | :--- | :--- |
+| representativeQueries | SHOULD | Sample natural-language queries a user might issue that this resource can serve — the signal a registry builds its semantic index from. An entry without it cannot be found by search, which is what distinguishes an ARD entry from a bare catalog entry. SHOULD contain 2–5 examples. It is not hard-required: the schema does not reject an entry that omits it or supplies a different count — the conformance tester flags those as warnings (§D.2), so output from existing tooling still validates.[^reqqueries] |
+| capabilities | MAY | Short skill or tool tokens (e.g. `["WeatherTool"]`) enabling fast structured filtering without fetching the full artifact. |
+
+The remaining terms are optional and descriptive.
 
 | Term | Description |
 | :--- | :--- |
-| capabilities | Short skill or tool tokens (e.g. `["WeatherTool"]`) enabling fast structured filtering without fetching the full artifact. |
 | description, tags, version, updatedAt, metadata, trustManifest | Descriptive terms. `trustManifest` is discussed in §4.5; ARD reads only `trustManifest.identity` and treats the rest as opaque. |
 
 Terms from any additional namespace declared in the entry's `@context` MAY also appear and become available as filter dimensions (§5.3.1) with no change to this specification.
@@ -553,7 +558,7 @@ npx ajv-cli validate -s spec/schemas/ard-entry.schema.json -d path/to/entry.json
 
 Beyond structural validity, conformance checks the following:
 
-* `representativeQueries` is present and SHOULD contain 2–5 examples (§4.2).
+* `representativeQueries` is present and contains 2–5 examples (§4.2) — **warning**, not error: an entry that omits it or supplies a different count still validates structurally, but is flagged, since it will not be found by search.
 * The URN publisher domain MUST align with `trustManifest.identity` (§4.5.1).
 * `capabilities` are treated as structured filter tokens (§5.3.1).
 
@@ -648,10 +653,10 @@ The authors thank the following people for their contributions and feedback, in 
 
 [^rm-descvocab]: **Removed from v0.9.** §4.5 "Description Vocabulary" was a short paragraph stating entries MAY use Schema.org vocabulary in descriptive fields, usable as Search filter dimensions. The *idea* survives — generalized into the namespace mechanism (§3.4, §4.1) and filter extensibility (§5.3.1) — but the standalone section and the explicit Schema.org naming are gone.
 
-[^reqqueries]: **Normative change from v0.9.** In v0.9 `representativeQueries` was an optional term with a SHOULD on its size. It is now **required** for an ARD entry. This follows directly from the separation in §4: an ARD entry is defined by the guarantee that the discovery signals are present and uniformly addressable, and `representativeQueries` is the signal the semantic index is constructed from. An entry lacking it is not indexed at all, so admitting it as a valid ARD entry would make the entry definition promise something it cannot deliver. A listing without it remains a perfectly valid *catalog* entry — it is simply not an ARD entry. The 2–5 count remains a SHOULD.
+[^reqqueries]: **Change from v0.9, softened on review (Shaun Smith).** `representativeQueries` is the signal the semantic index is built from — an entry lacking it is not indexed and cannot be found by search — so an ARD entry is expected to carry it, and this is what distinguishes an ARD entry from a bare catalog entry. An earlier form of this draft made it a hard MUST (schema `required`, `minItems:2/maxItems:5`). On review that was softened to a conformance **warning**: the schema no longer rejects an entry that omits `representativeQueries` or supplies a count outside 2–5, so entries emitted by existing tooling still validate, and the conformance tester flags the gap instead (§D.2). This also removes the internal contradiction whereby the schema hard-required a term the prose and the "existing entries remain valid" claim treated as recommended.
 
 [^wellknown]: **Wire change from v0.9.** The well-known path is now `/.well-known/ard.json` and the link relation is `ard`; v0.9 used `/.well-known/ai-catalog.json` and `rel="ai-catalog"`. The DNS and Agentmap example labels were made vocabulary-neutral to match. Existing publishers are not broken: the Compatibility note requires consumers to continue honouring the former path and relation as aliases. This is the last remaining normative dependency to be retired, and it is retired here in favour of names ARD controls. **Revised after review:** the well-known document's shape was previously undefined. §5.1 now states it is a JSON document with an `entries` array of ARD entries (other members transport-defined and ignored), formalized as `ardManifest` in the entry schema; the CDDL's `start` symbol was renamed from `ai-catalog-manifest` to `ard-manifest` accordingly.
 
-[^ownschema]: **Changed from v0.9.** v0.9 referenced the catalog JSON Schema as authoritative for entry structure. Now that ARD defines the ARD entry (§4), ARD publishes its own: `spec/schemas/ard-entry.schema.json`, which requires `representativeQueries`, keeps value-or-reference, defines the `trustManifest` envelope directly rather than by reference, and deliberately leaves `additionalProperties` open so namespaced terms remain valid. The OpenAPI specification's entry `$ref`s were repointed to it. The practical effect is that a future reduction of any catalog core cannot silently change what ARD requires.
+[^ownschema]: **Changed from v0.9.** v0.9 referenced the catalog JSON Schema as authoritative for entry structure. Now that ARD defines the ARD entry (§4), ARD publishes its own: `spec/schemas/ard-entry.schema.json`, which recommends `representativeQueries` (a conformance warning when absent, not a hard requirement), keeps value-or-reference, defines the `trustManifest` envelope directly rather than by reference, and deliberately leaves `additionalProperties` open so namespaced terms remain valid. The OpenAPI specification's entry `$ref`s were repointed to it. The practical effect is that a future reduction of any catalog core cannot silently change what ARD requires.
 
 [^rm-trusttables]: **Removed from v0.9.** §5.1–5.3 restated the *Trust Manifest*, *Attestation*, and *Provenance Link* objects as full field tables. v0.91 does not restate them; §4.5 references the entry schema (Appendix D) for their structure and verification procedures, keeping only the publisher-authority binding rule inline (§4.5.1).

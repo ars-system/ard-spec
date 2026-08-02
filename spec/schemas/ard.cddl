@@ -30,7 +30,7 @@ catalog-entry = {
   ? description: tstr,
   ? tags: [+ tstr],
   ? capabilities: [+ tstr],
-  ? representativeQueries: [* tstr], ; Required; Should contain 2 and 5 representative queries
+  ? representativeQueries: [* tstr], ; RECOMMENDED; conformance tester warns if absent or count is not 2-5
   ? version: tstr,
   ? updatedAt: tstr, ; ISO 8601 timestamp
   ? metadata: {* tstr => any},

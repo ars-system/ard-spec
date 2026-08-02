@@ -45,10 +45,8 @@
         },
         "representativeQueries": {
           "type": "array",
-          "minItems": 2,
-          "maxItems": 5,
           "items": { "type": "string" },
-          "description": "Sample natural-language queries this resource can serve. Required on a full entry: this is the signal a registry builds its semantic index from, and an entry without it cannot be found by search. SHOULD contain 2-5 examples."
+          "description": "Sample natural-language queries this resource can serve — the signal a registry builds its semantic index from. RECOMMENDED on every entry; SHOULD contain 2-5 examples. Neither presence nor count is enforced here so that emitted entries validate; the conformance tester flags absence, or a count outside 2-5, as a warning (§D.2)."
         },
         "capabilities": {
           "type": "array",
@@ -90,7 +88,7 @@
     "ardEntry": {
       "description": "A complete ARD entry, as published. Requires the discovery-critical terms and exactly one of url/data.",
       "allOf": [{ "$ref": "#/$defs/entryFields" }],
-      "required": ["identifier", "displayName", "type", "representativeQueries"],
+      "required": ["identifier", "displayName", "type"],
       "oneOf": [
         {
           "required": ["url"],
