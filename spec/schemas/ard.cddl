@@ -30,7 +30,7 @@ catalog-entry = {
   ? description: tstr,
   ? tags: [+ tstr],
   ? capabilities: [+ tstr],
-  ? representativeQueries: [2*5 tstr], ; Between 2 and 5 representative queries
+  ? representativeQueries: [* tstr], ; Required; Should contain 2 and 5 representative queries
   ? version: tstr,
   ? updatedAt: tstr, ; ISO 8601 timestamp
   ? metadata: {* tstr => any},
