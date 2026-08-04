@@ -119,7 +119,7 @@
     },
     "trustManifest": {
       "type": "object",
-      "description": "Identity, compliance, and provenance envelope. ARD reads only `identity` (for publisher-authority binding) and treats the rest as opaque; the members below are documented for reference. Validation is intentionally permissive (additionalProperties: true) so a trust manifest defined by any framework passes unchanged — including members ARD does not enumerate, such as trustSchema. Signing and verification are defined by the framework named in trustSchema, not by ARD.",
+      "description": "Identity, compliance, and provenance envelope. ARD requires only `identity` (for publisher-authority binding) and does not constrain the internal schema; validation is intentionally permissive (additionalProperties: true) so a trust manifest defined by any framework is structurally valid, including members ARD does not enumerate such as trustSchema. This does not mean consumers ignore it: a federated registry is expected to inspect the manifest and verify it per the framework named in trustSchema (attestations, provenance, signature). Signing and verification procedures are defined by that framework, not by ARD.",
       "required": ["identity"],
       "properties": {
         "identity": {
