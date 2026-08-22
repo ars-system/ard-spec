@@ -126,6 +126,17 @@ components:
     QueryModel:
       type: object
       properties:
+        "@context":
+          description: |
+            Optional JSON-LD context binding the prefixes used in filter keys, layered on the
+            ARD base context. Filter keys that name terms are resolved to IRIs through this
+            effective context and matched by IRI, so namespaced filtering works across publishers
+            regardless of the prefix each author chose. Absent, only the base context applies.
+          oneOf:
+            - type: string
+              format: uri
+            - type: object
+            - type: array
         text:
           type: string
           description: Natural language description narrows the set by semantic relevance.
@@ -133,7 +144,9 @@ components:
         filter:
           type: object
           description: |
-            Structured constraints. Keys are field paths (can be dot-separated for nested fields). 
+            Structured constraints. Term keys are IRI-resolved through the query's effective
+            context (base context + query @context); dot-paths into opaque members
+            (trustManifest.*, metadata.*, data.*) are literal JSON paths.
             Values are arrays or scalar values.
           additionalProperties:
             oneOf:
@@ -269,7 +282,7 @@ components:
 
     SearchResultItem:
       allOf:
-        - $ref: './ai-catalog.schema.json#/$defs/catalogEntry'
+        - $ref: './ard-entry.schema.json#/$defs/ardEntryProjection'
       type: object
       required:
         - score
@@ -321,7 +334,7 @@ components:
         items:
           type: array
           items:
-            $ref: './ai-catalog.schema.json#/$defs/catalogEntry'
+            $ref: './ard-entry.schema.json#/$defs/ardEntryProjection'
         total:
           type: integer
           description: Total count of matching entries in the registry.
