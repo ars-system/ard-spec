@@ -11,6 +11,11 @@ import json
 import urllib.request
 import urllib.error
 
+# Ensure UTF-8 output on Windows (cp1252 default cannot encode ✓/✗/⚠)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 # Strict URN Regex matching urn:air:<publisher>:<namespace>:<agent-name>
 URN_REGEX = re.compile(r"^urn:air:([a-zA-Z0-9.-]+)(?::([a-zA-Z0-9._:-]+))?:([a-zA-Z0-9._-]+)$")
 
