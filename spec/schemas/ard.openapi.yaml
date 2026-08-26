@@ -282,9 +282,11 @@ components:
 
     SearchResultItem:
       allOf:
-        - $ref: './ard-entry.schema.json#/$defs/ardEntryProjection'
+        - $ref: './ard-entry.schema.json#/$defs/EntryFields'
       type: object
+      description: "An entry as returned in search results. A registry returns the terms useful for selecting among results and MAY omit any other; only `identifier` is required."
       required:
+        - identifier
         - score
         - source
       properties:
@@ -334,7 +336,10 @@ components:
         items:
           type: array
           items:
-            $ref: './ard-entry.schema.json#/$defs/ardEntryProjection'
+            allOf:
+              - $ref: './ard-entry.schema.json#/$defs/EntryFields'
+            required:
+              - identifier
         total:
           type: integer
           description: Total count of matching entries in the registry.
