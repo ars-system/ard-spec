@@ -555,8 +555,9 @@ To simplify development and guarantee compliance, this repository provides an of
 * **Testing Tool Executable**: [`conformance/bin/conformance-test`](../conformance/bin/conformance-test)
 
 #### Features:
-* **Manifest validation mode**: Parses JSON manifests, runs default-namespace JSON Schema checks, and executes ARD's discovery constraints (§D.2) — URN formatting, value-or-reference enforcement, `representativeQueries` sizing.
-* **Registry validation mode**: Probes live endpoints (`POST /search` and `GET /agents`), sends spec-compliant search requests, and validates status codes, pagination envelopes, relevance scores, and returned entry structure.
+* **Manifest validation mode**: Parses a JSON manifest, validates it against `ardManifest` and each of its entries against `ardEntry` (§D.1), and executes ARD's discovery constraints (§D.2) — URN formatting, value-or-reference enforcement, `representativeQueries` presence and sizing.
+* **Publisher resolution mode**: Given a domain, performs the resolution of §5.1 — fetches `/.well-known/ard.json`, falls back to the predecessor path with a warning that consumers are not required to consult it, and validates whatever it resolves.
+* **Registry validation mode**: Probes live endpoints (`POST /search` and `GET /agents`), sends spec-compliant search requests, and validates status codes, pagination envelopes, relevance scores, and returned projections (§5.3.2).
 
 ## Acknowledgements
 
