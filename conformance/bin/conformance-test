@@ -91,7 +91,7 @@ class ConformanceTester:
             return json.load(f)
 
     def run_json_schema_validation(self, manifest_data):
-        """Validate the manifest as an ardManifest, then every entry as an ardEntry."""
+        """Validate the manifest as an ArdManifest, then every entry as an ArdEntry."""
         if not self.jsonschema_available:
             print_warning("Python 'jsonschema' package not installed. Skipping strict JSON Schema check.")
             print_bullet("Tip: Run 'pip install jsonschema' to enable strict schema-level checking.")
@@ -113,10 +113,10 @@ class ConformanceTester:
 
         ok = True
         try:
-            jsonschema.validate(instance=manifest_data, schema=as_def("ardManifest"))
-            print_success("Manifest validates against ardManifest.")
+            jsonschema.validate(instance=manifest_data, schema=as_def("ArdManifest"))
+            print_success("Manifest validates against ArdManifest.")
         except jsonschema.exceptions.ValidationError as e:
-            self.add_error(f"ardManifest validation failed: {e.message} at path '{'.'.join(map(str, e.absolute_path))}'")
+            self.add_error(f"ArdManifest validation failed: {e.message} at path '{'.'.join(map(str, e.absolute_path))}'")
             ok = False
         except Exception as e:
             self.add_warning(f"Failed to run JSON Schema validator: {e}")
@@ -124,18 +124,18 @@ class ConformanceTester:
 
         entries = manifest_data.get("entries")
         if isinstance(entries, list):
-            entry_schema = as_def("ardEntry")
+            entry_schema = as_def("ArdEntry")
             bad = 0
             for idx, entry in enumerate(entries):
                 label = (entry.get("displayName") or entry.get("identifier") or f"Entry #{idx}") if isinstance(entry, dict) else f"Entry #{idx}"
                 try:
                     jsonschema.validate(instance=entry, schema=entry_schema)
                 except jsonschema.exceptions.ValidationError as e:
-                    self.add_error(f"[{label}] ardEntry validation failed: {e.message} at path '{'.'.join(map(str, e.absolute_path))}'")
+                    self.add_error(f"[{label}] ArdEntry validation failed: {e.message} at path '{'.'.join(map(str, e.absolute_path))}'")
                     bad += 1
                     ok = False
             if not bad:
-                print_success(f"All {len(entries)} entries validate against ardEntry.")
+                print_success(f"All {len(entries)} entries validate against ArdEntry.")
         return ok
 
     def validate_manifest(self, raw_content, source_label):
@@ -373,16 +373,16 @@ class ConformanceTester:
                             if not source:
                                 self.add_error(f"[{label}] Missing required SearchResultItem field 'source'.")
                                 
-                            # A search result is an ardEntryProjection (§5.3.2): only
-                            # 'identifier' is required. A registry MAY omit any other
-                            # term; 'identifier' names the authoritative entry.
+                            # In a response, only 'identifier' is required (§5.3.2).
+                            # A registry MAY omit any other term; 'identifier' names
+                            # the authoritative entry.
                             ident = item.get("identifier")
                             if not ident:
-                                self.add_error(f"[{label}] Result projection is missing required 'identifier'.")
+                                self.add_error(f"[{label}] Result is missing required 'identifier'.")
 
                             for optional_term in ("displayName", "type"):
                                 if not item.get(optional_term):
-                                    print_bullet(f"[{label}] Projection omits '{optional_term}' (permitted; results carry only what selection needs).")
+                                    print_bullet(f"[{label}] Omits '{optional_term}' (permitted; results carry only what selection needs).")
                 else:
                     self.add_error(f"POST /search returned unexpected HTTP status: {response.status}")
         except urllib.error.HTTPError as e:

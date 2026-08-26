@@ -284,7 +284,7 @@ In addition to the `query` object (§5.3.1), Search accepts:
 
 The response returns entries with additional relevance scores, plus optional referrals. The `score` parameter denotes semantic relevance ranking (0–100) computed by the search registry, indicating how well the entry satisfies the natural language query. It is strictly an informational relevance metric and MUST NOT be interpreted by orchestrators as a cryptographic trust, compliance, or safety rating. Trust evaluation is fully decoupled and handled independently via the trust manifest (§4.5).
 
-Response entries are **projections**: a registry returns the terms useful for selecting among results and MAY omit others. `representativeQueries`, in particular, serve indexing rather than presentation and are normally omitted from results. A projection is therefore not a complete ARD entry (§4.2); it carries at least `identifier`, which names the authoritative entry. Note that `url`, where present, addresses the artifact (an Agent Card, Server Card, and so on) — not the ARD entry that describes it. A normative operation for retrieving a complete entry by `identifier` is out of scope for this draft; a client that needs the full entry obtains it from the source that published it.
+In a response, an entry MUST carry `identifier`; every other term is at the registry's discretion. A registry returns what is useful for selecting among results and MAY omit the rest — `representativeQueries` in particular serve indexing rather than presentation and are normally omitted. A result is therefore not necessarily a complete ARD entry (§4.2); its `identifier` names the authoritative one. Note that `url`, where present, addresses the artifact (an Agent Card, Server Card, and so on) — not the ARD entry that describes it. A normative operation for retrieving a complete entry by `identifier` is out of scope for this draft; a client that needs the full entry obtains it from the source that published it.
 
 ```json
 {
@@ -523,7 +523,7 @@ To support automated validation, testing, and machine-readable compliance checki
 
 The ARD entry — its required terms, the value-or-reference rule, and the `trustManifest` envelope — is formally defined in JSON Schema (Draft 2020-12). Because ARD defines the ARD entry (§4), this schema is authoritative for it and does not derive from any catalog schema; the two evolve independently.
 
-* **Authoritative schema**: [`spec/schemas/ard-entry.schema.json`](schemas/ard-entry.schema.json) — defines `ardEntry` (a full entry), `ardEntryProjection` (a search result), and `ardManifest` (the `/.well-known/ard.json` document, §5.1).
+* **Authoritative schema**: [`spec/schemas/ard-entry.schema.json`](schemas/ard-entry.schema.json) — defines `ArdEntry` and `ArdManifest` (the `/.well-known/ard.json` document, §5.1).
 * **Base context**: [`spec/schemas/ard.context.jsonld`](schemas/ard.context.jsonld) — the initial expansion context of §4.1, served at `https://agenticresourcediscovery.org/context/v1`.
 * **Structural grammar (CDDL, RFC 8610)**: [`spec/schemas/ard.cddl`](schemas/ard.cddl)
 
@@ -555,9 +555,9 @@ To simplify development and guarantee compliance, this repository provides an of
 * **Testing Tool Executable**: [`conformance/bin/conformance-test`](../conformance/bin/conformance-test)
 
 #### Features:
-* **Manifest validation mode**: Parses a JSON manifest, validates it against `ardManifest` and each of its entries against `ardEntry` (§D.1), and executes ARD's discovery constraints (§D.2) — URN formatting, value-or-reference enforcement, `representativeQueries` presence and sizing.
+* **Manifest validation mode**: Parses a JSON manifest, validates it against `ArdManifest` and each of its entries against `ArdEntry` (§D.1), and executes ARD's discovery constraints (§D.2) — URN formatting, value-or-reference enforcement, `representativeQueries` presence and sizing.
 * **Publisher resolution mode**: Given a domain, performs the resolution of §5.1 — fetches `/.well-known/ard.json`, falls back to the predecessor path with a warning that consumers are not required to consult it, and validates whatever it resolves.
-* **Registry validation mode**: Probes live endpoints (`POST /search` and `GET /agents`), sends spec-compliant search requests, and validates status codes, pagination envelopes, relevance scores, and returned projections (§5.3.2).
+* **Registry validation mode**: Probes live endpoints (`POST /search` and `GET /agents`), sends spec-compliant search requests, and validates status codes, pagination envelopes, relevance scores, and returned entries (§5.3.2).
 
 ## Acknowledgements
 

@@ -78,7 +78,7 @@ This is a conformance tooling option only; it does not require authentication fo
 When checking an ARD manifest (`ard.json`), the tool executes the following validations:
 
 * **JSON Structural Integrity**: Parses the manifest payload to ensure it is valid, uncorrupted JSON.
-* **JSON Schema Draft 2020-12 Conformance**: If the Python `jsonschema` library is installed (`pip install jsonschema`), the tool validates the document against `ardManifest` and then every entry against `ardEntry`, both from the authoritative [ard-entry.schema.json](../spec/schemas/ard-entry.schema.json).
+* **JSON Schema Draft 2020-12 Conformance**: If the Python `jsonschema` library is installed (`pip install jsonschema`), the tool validates the document against `ArdManifest` and then every entry against `ArdEntry`, both from the authoritative [ard-entry.schema.json](../spec/schemas/ard-entry.schema.json).
 * **Strict URN Pattern Matching**: Enforces that each entry's `identifier` adheres strictly to the domain-anchored URN namespace format defined in the spec:
   `urn:air:<publisher>:<namespace>:<agent-name>` (RFC 8141).
 * **Value-or-Reference Delivery**: Enforces the mutual exclusivity constraint of the specification. Each entry **MUST** contain precisely one of either `"url"` (remote reference) or `"data"` (embedded payload), and will fail if both or neither are provided.
@@ -111,7 +111,7 @@ When checking a live Agent Registry server, the tool executes the following prob
   * Probes the search route which is required for dynamic semantic capability discovery.
   * Sends a mock natural-language query payload with required `query` string and optional `filter` / `limit` parameters.
   * Verifies a `200 OK` response structure containing a `"results"` array.
-  * Validates each result as an `ardEntryProjection` (§5.3.2): only `identifier` is required, since a registry MAY return just what selection needs. Omitted terms are reported, not failed.
+  * Validates each result per §5.3.2: only `identifier` is required, since a registry MAY return just what selection needs. Omitted terms are reported, not failed.
 * **POST `/explore` (Optional Introspection Probe)**:
   * Probes the dynamic introspection route for facet and bucketing generation.
   * Sends a mock request requesting facet counts grouped by `type`.

@@ -50,20 +50,6 @@ content-delivery = (
   data: {* tstr => any}
 )
 
-; The shape an entry takes in search and list results. Only `identifier` is
-; required: a registry MAY omit any other term, notably representativeQueries,
-; which serve indexing rather than presentation.
-
-ard-entry-projection = {
-  identifier: tstr,
-  ? displayName: tstr,
-  ? type: tstr,
-  ? url: tstr,
-  ? data: {* tstr => any},
-  ard-entry-descriptive,
-  * tstr => any
-}
-
 ; --- The Zero-Trust / Compliance Envelope ---
 ; ARD requires only `identity`. The envelope is framework-defined and open:
 ; a registry is expected to verify it per the framework named in trustSchema.
@@ -156,16 +142,22 @@ search-response = {
 }
 
 search-result-item = {
+  result-entry-fields,
+  score: 0..100, ; Semantic relevance score
+  source: tstr,  ; Registry base URL
+  * tstr => any
+}
+
+result-entry = { result-entry-fields, * tstr => any }
+
+result-entry-fields = (
   identifier: tstr,
   ? displayName: tstr,
   ? type: tstr,
   ? url: tstr,
   ? data: {* tstr => any},
-  ard-entry-descriptive,
-  score: 0..100, ; Semantic relevance score
-  source: tstr,  ; Registry base URL
-  * tstr => any
-}
+  ard-entry-descriptive
+)
 
 registry-referral = {
   identifier: tstr,
@@ -174,8 +166,11 @@ registry-referral = {
   url: tstr
 }
 
+; In search and list results a registry returns the terms useful for selecting
+; among results and MAY omit any other; only `identifier` is required.
+
 list-response = {
-  items: [* ard-entry-projection],
+  items: [* result-entry],
   ? total: uint,
   ? pageToken: tstr
 }
